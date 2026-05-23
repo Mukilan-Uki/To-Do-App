@@ -1,343 +1,164 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
-import { Plus, CheckSquare } from "lucide-react";
+import { CheckSquare, Clock, Users, Activity } from "lucide-react";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import TaskItem from "../components/TaskItem";
-import TaskModal from "../components/TaskModal";
-import TaskDetailsModal from "../components/TaskDetailsModal";
+import { useNavigate } from "react-router-dom";
 
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-
-const Dashboard = ({ showStats = true }) => {
+const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [taskToEdit, setTaskToEdit] = useState(null);
-  const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState("All");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [sortOption, setSortOption] = useState("order");
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  const fetchTasks = async () => {
-    try {
-      const { data } = await api.get("/tasks");
-      setTasks(data);
-    } catch (error) {
-      toast.error("Failed to load tasks");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const { data } = await api.get("/tasks");
+        setTasks(data);
+      } catch (error) {
+        toast.error("Failed to load tasks");
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchTasks();
   }, []);
 
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-
-    setTasks((items) => {
-      const oldIndex = items.findIndex((t) => t._id === active.id);
-      const newIndex = items.findIndex((t) => t._id === over.id);
-      const newArray = arrayMove(items, oldIndex, newIndex);
-
-      // Prepare reorder payload
-      const payload = newArray.map((item, index) => ({
-        _id: item._id,
-        order: index,
-      }));
-      api
-        .put("/tasks/reorder", { items: payload })
-        .catch(() => toast.error("Failed to save order"));
-
-      return newArray;
-    });
-  };
-
-  const handleToggleStatus = async (task) => {
-    const newStatus = task.status === "completed" ? "pending" : "completed";
-    try {
-      await api.put(`/tasks/${task._id}`, { status: newStatus });
-      setTasks(
-        tasks.map((t) =>
-          t._id === task._id ? { ...t, status: newStatus } : t,
-        ),
-      );
-    } catch (error) {
-      toast.error("Failed to update status");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
-    try {
-      await api.delete(`/tasks/${id}`);
-      setTasks(tasks.filter((t) => t._id !== id));
-      toast.success("Task deleted");
-    } catch (error) {
-      toast.error("Failed to delete task");
-    }
-  };
-
-  const openEditModal = (task) => {
-    setTaskToEdit(task);
-    setIsModalOpen(true);
-  };
-
-  const openTaskDetails = (task) => {
-    setSelectedTask(task);
-    setTaskDetailsOpen(true);
-  };
-
-  const openCreateModal = () => {
-    setTaskToEdit(null);
-    setIsModalOpen(true);
-  };
-
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const pendingCount = tasks.filter((t) => t.status === "pending").length;
+  const projectTasks = tasks.filter((t) => t.type === "project");
+  
+  // Collect all collaborators across tasks to get unique count
+  const allCollaborators = tasks.reduce((acc, task) => {
+    if (task.collaborators) {
+      task.collaborators.forEach(c => {
+        if (!acc.includes(c._id || c)) acc.push(c._id || c);
+      });
+    }
+    return acc;
+  }, []);
 
-  const categories = [
-    "All",
-    ...new Set(tasks.map((t) => t.category).filter(Boolean)),
-  ];
-  const filteredTasks = tasks
-    .filter((task) =>
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    .filter(
-      (task) =>
-        selectedPriority === "All" || task.priority === selectedPriority,
-    )
-    .filter(
-      (task) =>
-        selectedCategory === "All" || task.category === selectedCategory,
-    )
-    .sort((a, b) => {
-      if (sortOption === "priority") {
-        const order = { High: 0, Medium: 1, Low: 2 };
-        return order[a.priority] - order[b.priority];
-      }
-      if (sortOption === "dueDate") {
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      }
-      return a.order - b.order;
-    });
-
-  const pageTitle = showStats ? `Hello, ${user?.name} 👋` : "My Tasks";
-  const pageSubtitle = showStats
-    ? "Here is your daily task overview."
-    : "Manage your tasks, projects and collaborators.";
+  // Get recent activity (5 most recently created/updated tasks based on createdAt or updatedAt)
+  const recentTasks = [...tasks]
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+    .slice(0, 5);
 
   return (
     <div className="space-y-6 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{pageTitle}</h1>
-          <p className="text-muted-foreground mt-1">{pageSubtitle}</p>
+          <h1 className="text-3xl font-bold">Hello, {user?.name} 👋</h1>
+          <p className="text-muted-foreground mt-1">Here is your daily task overview.</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-transform active:scale-95 shadow-lg shadow-primary/20"
-        >
-          <Plus size={20} />
-          <span>New Task</span>
-        </button>
       </header>
 
-      {showStats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <motion.div
-            whileHover={{ y: -5 }}
-            className="p-6 rounded-2xl bg-card border border-border shadow-sm"
-          >
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Total Tasks
-            </h3>
-            <p className="text-4xl font-bold mt-2">{tasks.length}</p>
-          </motion.div>
-          <motion.div
-            whileHover={{ y: -5 }}
-            className="p-6 rounded-2xl bg-card border border-border shadow-sm"
-          >
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Completed
-            </h3>
-            <p className="text-4xl font-bold mt-2 text-primary">
-              {completedCount}
-            </p>
-          </motion.div>
-          <motion.div
-            whileHover={{ y: -5 }}
-            className="p-6 rounded-2xl bg-card border border-border shadow-sm"
-          >
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Pending
-            </h3>
-            <p className="text-4xl font-bold mt-2 text-accent">
-              {pendingCount}
-            </p>
-          </motion.div>
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-4">
-        <input
-          type="text"
-          placeholder="Search tasks..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 rounded-2xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-        />
-        <select
-          value={selectedPriority}
-          onChange={(e) => setSelectedPriority(e.target.value)}
-          className="w-full p-3 rounded-2xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-        >
-          <option value="All">All priorities</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="w-full p-3 rounded-2xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-        >
-          {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value)}
-          className="w-full p-3 rounded-2xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-        >
-          <option value="order">Custom order</option>
-          <option value="dueDate">Due date</option>
-          <option value="priority">Priority</option>
-        </select>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="p-6 rounded-2xl bg-card border border-border shadow-sm"
-        >
-          <h3 className="text-lg font-medium text-muted-foreground">
-            Total Tasks
-          </h3>
-          <p className="text-4xl font-bold mt-2">{tasks.length}</p>
-        </motion.div>
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="p-6 rounded-2xl bg-card border border-border shadow-sm"
-        >
-          <h3 className="text-lg font-medium text-muted-foreground">
-            Completed
-          </h3>
-          <p className="text-4xl font-bold mt-2 text-primary">
-            {completedCount}
-          </p>
-        </motion.div>
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="p-6 rounded-2xl bg-card border border-border shadow-sm"
-        >
-          <h3 className="text-lg font-medium text-muted-foreground">Pending</h3>
-          <p className="text-4xl font-bold mt-2 text-accent">{pendingCount}</p>
-        </motion.div>
-      </div>
-
-      {/* Task List */}
-      <div className="bg-card rounded-2xl border border-border shadow-sm p-6 min-h-[400px]">
-        <h2 className="text-xl font-semibold mb-6">Your Tasks</h2>
-
-        {loading ? (
-          <div className="text-center text-muted-foreground mt-20">
-            Loading tasks...
-          </div>
-        ) : filteredTasks.length === 0 ? (
-          <div className="text-center text-muted-foreground mt-20 flex flex-col items-center">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-              <CheckSquare size={40} />
-            </div>
-            <p className="text-lg">No tasks match your current filters.</p>
-            <p className="text-sm opacity-70">
-              Try adjusting your search, filters, or create a new task.
-            </p>
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={filteredTasks.map((t) => t._id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-1">
-                {filteredTasks.map((task) => (
-                  <TaskItem
-                    key={task._id}
-                    task={task}
-                    onEdit={openEditModal}
-                    onManage={openTaskDetails}
-                    onDelete={handleDelete}
-                    onToggleStatus={handleToggleStatus}
-                  />
-                ))}
+      {loading ? (
+        <div className="text-center text-muted-foreground mt-20">Loading dashboard...</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-muted-foreground">Total Tasks</h3>
+                <p className="text-4xl font-bold mt-2">{tasks.length}</p>
               </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <CheckSquare size={24} />
+              </div>
+            </motion.div>
+            
+            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-muted-foreground">Completed</h3>
+                <p className="text-4xl font-bold mt-2 text-emerald-500">{completedCount}</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <CheckSquare size={24} />
+              </div>
+            </motion.div>
 
-      <TaskModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        taskToEdit={taskToEdit}
-        onTaskSaved={fetchTasks}
-      />
-      <TaskDetailsModal
-        isOpen={taskDetailsOpen}
-        onClose={() => setTaskDetailsOpen(false)}
-        task={selectedTask}
-        onTaskUpdated={fetchTasks}
-      />
+            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-muted-foreground">Active Projects</h3>
+                <p className="text-4xl font-bold mt-2 text-indigo-500">{projectTasks.length}</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                <Activity size={24} />
+              </div>
+            </motion.div>
+
+            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-muted-foreground">Collaborators</h3>
+                <p className="text-4xl font-bold mt-2 text-amber-500">{allCollaborators.length}</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <Users size={24} />
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Clock size={20} className="text-primary" /> Recent Activity
+                </h2>
+                <button onClick={() => navigate('/tasks')} className="text-sm text-primary hover:underline">
+                  View All
+                </button>
+              </div>
+              <div className="space-y-4">
+                {recentTasks.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No recent activity.</p>
+                ) : (
+                  recentTasks.map(task => (
+                    <div 
+                      key={task._id} 
+                      onClick={() => navigate(task.type === 'project' ? `/project/${task._id}` : `/task/${task._id}`)}
+                      className="p-4 rounded-xl border border-border hover:border-primary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className={`font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>{task.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {task.type === 'project' ? 'Project' : 'Task'} • {task.priority} Priority
+                          </p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+                          {task.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
+              <h2 className="text-xl font-semibold mb-6">Quick Navigation</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => navigate('/tasks')} 
+                  className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/50 transition-colors"
+                >
+                  <CheckSquare size={32} className="text-primary" />
+                  <span className="font-medium">My Tasks</span>
+                </button>
+                <button 
+                  onClick={() => navigate('/calendar')} 
+                  className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/50 transition-colors"
+                >
+                  <Activity size={32} className="text-primary" />
+                  <span className="font-medium">Calendar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

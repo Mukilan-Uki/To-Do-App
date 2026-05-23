@@ -6,6 +6,9 @@ import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import MyTasks from "./pages/MyTasks";
+import ProjectDetail from "./pages/ProjectDetail";
+import SimpleTaskDetail from "./pages/SimpleTaskDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import Calendar from "./pages/Calendar";
 import AdminUsers from "./pages/AdminUsers";
@@ -74,7 +77,23 @@ function App() {
             path="/tasks"
             element={
               <ProtectedRoute>
-                <Dashboard showStats={false} />
+                <MyTasks />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/:id"
+            element={
+              <ProtectedRoute>
+                <ProjectDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/task/:id"
+            element={
+              <ProtectedRoute>
+                <SimpleTaskDetail />
               </ProtectedRoute>
             }
           />

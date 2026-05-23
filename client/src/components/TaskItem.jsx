@@ -7,11 +7,12 @@ import {
   Trash2,
   CheckCircle,
   Circle,
-  Users,
+  UserPlus,
+  ExternalLink,
 } from "lucide-react";
 import clsx from "clsx";
 
-const TaskItem = ({ task, onEdit, onDelete, onToggleStatus, onManage }) => {
+const TaskItem = ({ task, onEdit, onDelete, onToggleStatus, onManage, onCollaborators }) => {
   const {
     attributes,
     listeners,
@@ -68,10 +69,14 @@ const TaskItem = ({ task, onEdit, onDelete, onToggleStatus, onManage }) => {
         {isCompleted ? <CheckCircle size={24} /> : <Circle size={24} />}
       </button>
 
-      <div className="flex-1 min-w-0">
+      {/* Clicking title navigates to detail page */}
+      <div
+        className="flex-1 min-w-0 cursor-pointer"
+        onClick={() => onManage?.(task)}
+      >
         <h3
           className={clsx(
-            "font-medium truncate transition-all",
+            "font-medium truncate transition-all hover:text-primary",
             isCompleted && "line-through text-muted-foreground",
           )}
         >
@@ -94,6 +99,11 @@ const TaskItem = ({ task, onEdit, onDelete, onToggleStatus, onManage }) => {
           <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
             {task.category}
           </span>
+          {task.type === "project" && (
+            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              Project
+            </span>
+          )}
           {task.dueDate && (
             <span className="text-xs text-muted-foreground">
               {new Date(task.dueDate).toLocaleDateString()}
@@ -121,6 +131,7 @@ const TaskItem = ({ task, onEdit, onDelete, onToggleStatus, onManage }) => {
               <div
                 key={collaborator._id}
                 className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold"
+                title={collaborator.name}
               >
                 {collaborator.name?.charAt(0) || collaborator.email?.charAt(0)}
               </div>
@@ -134,23 +145,35 @@ const TaskItem = ({ task, onEdit, onDelete, onToggleStatus, onManage }) => {
         )}
       </div>
 
-      <div className="flex items-center gap-2 opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 opacity-100 transition-opacity">
+        {/* Collaborators button - ONLY opens collaborator panel */}
         <button
-          onClick={() => onManage?.(task)}
-          className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-          title="Manage task"
+          onClick={(e) => { e.stopPropagation(); onCollaborators?.(task); }}
+          className="p-2 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors"
+          title="Manage collaborators"
         >
-          <Users size={18} />
+          <UserPlus size={18} />
         </button>
+        {/* Edit button */}
         <button
-          onClick={() => onEdit(task)}
+          onClick={(e) => { e.stopPropagation(); onEdit(task); }}
           className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+          title="Edit task"
         >
           <Edit2 size={18} />
         </button>
+        {/* Open detail page */}
         <button
-          onClick={() => onDelete(task._id)}
+          onClick={(e) => { e.stopPropagation(); onManage?.(task); }}
+          className="p-2 text-muted-foreground hover:text-indigo-500 hover:bg-indigo-500/10 rounded-lg transition-colors"
+          title="View details"
+        >
+          <ExternalLink size={18} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(task._id); }}
           className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+          title="Delete task"
         >
           <Trash2 size={18} />
         </button>

@@ -2,15 +2,23 @@ import Task from "../models/Task.js";
 import User from "../models/User.js";
 
 const canAccessTask = (task, userId) => {
-  const ownerId = task.owner ? task.owner.toString() : task.user?.toString();
+  const ownerId = task.owner 
+    ? (task.owner._id ? task.owner._id.toString() : task.owner.toString()) 
+    : (task.user?._id ? task.user._id.toString() : task.user?.toString());
+    
   return (
     ownerId === userId.toString() ||
-    task.collaborators.some((collab) => collab.toString() === userId.toString())
+    task.collaborators.some((collab) => {
+      const collabId = collab._id ? collab._id.toString() : collab.toString();
+      return collabId === userId.toString();
+    })
   );
 };
 
 const isTaskOwner = (task, userId) => {
-  const ownerId = task.owner ? task.owner.toString() : task.user?.toString();
+  const ownerId = task.owner 
+    ? (task.owner._id ? task.owner._id.toString() : task.owner.toString()) 
+    : (task.user?._id ? task.user._id.toString() : task.user?.toString());
   return ownerId === userId.toString();
 };
 
@@ -246,7 +254,8 @@ export const addCollaborator = async (req, res) => {
       return res.status(404).json({ message: "Collaborator not found" });
     }
 
-    if (collaborator._id.toString() === task.owner.toString()) {
+    const ownerId = task.owner ? task.owner.toString() : task.user?.toString();
+    if (collaborator._id.toString() === ownerId) {
       return res
         .status(400)
         .json({ message: "Owner is already part of the task" });
@@ -416,14 +425,11 @@ export const deleteSubtask = async (req, res) => {
         .json({ message: "Subtasks only available for project tasks" });
     }
 
-    task.subtasks = task.subtasks.filter(
-      (subtask) => subtask._id.toString() !== req.params.subtaskId,
-    );
+    task.subtasks.pull(req.params.subtaskId);
 
-    task.subtasks = task.subtasks.map((subtask, index) => ({
-      ...subtask.toObject(),
-      order: index,
-    }));
+    task.subtasks.forEach((subtask, index) => {
+      subtask.order = index;
+    });
 
     await task.save();
 
