@@ -23,90 +23,40 @@ const TaskModal = ({ isOpen, onClose, taskToEdit = null, onTaskSaved }) => {
       setCategory(taskToEdit.category);
       setType(taskToEdit.type || "simple");
       setSubtasks(taskToEdit.subtasks || []);
-      setDueDate(
-        taskToEdit.dueDate
-          ? new Date(taskToEdit.dueDate).toISOString().split("T")[0]
-          : "",
-      );
+      setDueDate(taskToEdit.dueDate ? new Date(taskToEdit.dueDate).toISOString().split("T")[0] : "");
     } else {
       resetForm();
     }
   }, [taskToEdit, isOpen]);
 
   const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setPriority("Medium");
-    setCategory("General");
-    setType("simple");
-    setSubtasks([]);
-    setSubtaskTitle("");
-    setDueDate("");
+    setTitle(""); setDescription(""); setPriority("Medium");
+    setCategory("General"); setType("simple"); setSubtasks([]);
+    setSubtaskTitle(""); setDueDate("");
   };
 
   const handleAddSubtask = () => {
     if (!subtaskTitle.trim()) return;
-    setSubtasks((prev) => [
-      ...prev,
-      {
-        _id: `${Date.now()}`,
-        title: subtaskTitle.trim(),
-        completed: false,
-        order: prev.length,
-      },
-    ]);
+    setSubtasks(prev => [...prev, { _id: `${Date.now()}`, title: subtaskTitle.trim(), completed: false, order: prev.length }]);
     setSubtaskTitle("");
-  };
-
-  const handleRemoveSubtask = (id) => {
-    setSubtasks((prev) => prev.filter((subtask) => subtask._id !== id));
-  };
-
-  const handleSubtaskChange = (id, value) => {
-    setSubtasks((prev) =>
-      prev.map((subtask) =>
-        subtask._id === id ? { ...subtask, title: value } : subtask,
-      ),
-    );
-  };
-
-  const handleToggleSubtaskCompleted = (id) => {
-    setSubtasks((prev) =>
-      prev.map((subtask) =>
-        subtask._id === id
-          ? { ...subtask, completed: !subtask.completed }
-          : subtask,
-      ),
-    );
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const taskData = {
-        title,
-        description,
-        priority,
-        category,
-        type,
-      };
+      const taskData = { title, description, priority, category, type };
       if (dueDate) taskData.dueDate = dueDate;
-      if (type === "project")
-        taskData.subtasks = subtasks.map(
-          ({ _id, title, completed, order }) => ({ title, completed, order }),
-        );
+      if (type === "project") taskData.subtasks = subtasks.map(({ title, completed, order }) => ({ title, completed, order }));
 
       if (taskToEdit) {
         await api.put(`/tasks/${taskToEdit._id}`, taskData);
-        toast.success("Task updated successfully");
+        toast.success("Task updated!");
       } else {
         await api.post("/tasks", taskData);
-        toast.success("Task created successfully");
+        toast.success("Task created!");
       }
-      onTaskSaved();
-      onClose();
-      resetForm();
+      onTaskSaved(); onClose(); resetForm();
     } catch (error) {
       toast.error(error.response?.data?.message || "Something went wrong");
     } finally {
@@ -118,189 +68,88 @@ const TaskModal = ({ isOpen, onClose, taskToEdit = null, onTaskSaved }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-md max-h-[calc(100vh-4rem)] bg-card rounded-2xl shadow-xl border border-border overflow-hidden"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 40 }}
+          className="w-full sm:max-w-md bg-card rounded-t-2xl sm:rounded-2xl shadow-xl border border-border overflow-hidden max-h-[90vh] flex flex-col"
         >
-          <div className="flex justify-between items-center p-6 border-b border-border">
-            <h2 className="text-xl font-semibold">
-              {taskToEdit ? "Edit Task" : "Create New Task"}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-muted transition-colors"
-            >
-              <X size={20} />
-            </button>
+          <div className="flex justify-between items-center p-4 md:p-6 border-b border-border flex-shrink-0">
+            <h2 className="text-lg md:text-xl font-semibold">{taskToEdit ? "Edit Task" : "Create New Task"}</h2>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-muted transition-colors"><X size={18} /></button>
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="p-6 space-y-4 overflow-y-auto max-h-[calc(100vh-12rem)]"
-          >
+          <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
             <div>
-              <label className="block text-sm font-medium mb-1">Title</label>
-              <input
-                type="text"
-                required
-                className="w-full p-2.5 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
+              <label className="block text-sm font-medium mb-1">Title *</label>
+              <input type="text" required className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title..." />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Description
-              </label>
-              <textarea
-                className="w-full p-2.5 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none resize-none h-24"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none resize-none h-20 text-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description..." />
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Task Type
-                </label>
-                <select
-                  className="w-full p-2.5 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                >
-                  <option value="simple">Simple Task</option>
-                  <option value="project">Project Task</option>
-                </select>
+            <div>
+              <label className="block text-sm font-medium mb-1">Task Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                {["simple", "project"].map(t => (
+                  <button key={t} type="button" onClick={() => setType(t)}
+                    className={`py-2.5 rounded-xl text-sm font-medium transition-colors capitalize ${type === t ? 'bg-primary text-primary-foreground' : 'bg-background border border-border text-muted-foreground hover:bg-muted'}`}>
+                    {t === "simple" ? "Simple Task" : "Project"}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Priority
-                </label>
-                <select
-                  className="w-full p-2.5 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                >
+                <label className="block text-sm font-medium mb-1">Priority</label>
+                <select className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm" value={priority} onChange={(e) => setPriority(e.target.value)}>
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Category
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2.5 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="e.g. Work"
-                />
+                <label className="block text-sm font-medium mb-1">Category</label>
+                <input type="text" className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Work" />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-1">Due Date</label>
-              <input
-                type="date"
-                className="w-full p-2.5 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
+              <input type="date" className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
 
             {type === "project" && (
-              <div className="rounded-3xl border border-border bg-background/80 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-medium">Subtasks</p>
-                  <p className="text-xs text-muted-foreground">
-                    Project progress updates automatically
-                  </p>
-                </div>
-                <div className="space-y-3">
+              <div className="rounded-xl border border-border bg-background/80 p-3">
+                <p className="text-sm font-medium mb-3">Subtasks</p>
+                <div className="space-y-2 mb-3">
                   {subtasks.map((subtask) => (
-                    <div
-                      key={subtask._id}
-                      className="flex items-center gap-2 rounded-2xl border border-border bg-card p-3"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleToggleSubtaskCompleted(subtask._id)
-                        }
-                        className={
-                          subtask.completed
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {subtask.completed ? (
-                          <CheckCircle size={18} />
-                        ) : (
-                          <Circle size={18} />
-                        )}
+                    <div key={subtask._id} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2.5">
+                      <button type="button" onClick={() => setSubtasks(prev => prev.map(s => s._id === subtask._id ? { ...s, completed: !s.completed } : s))} className={subtask.completed ? "text-primary flex-shrink-0" : "text-muted-foreground flex-shrink-0"}>
+                        {subtask.completed ? <CheckCircle size={16} /> : <Circle size={16} />}
                       </button>
-                      <input
-                        type="text"
-                        value={subtask.title}
-                        onChange={(e) =>
-                          handleSubtaskChange(subtask._id, e.target.value)
-                        }
-                        className="flex-1 rounded-2xl border border-border bg-background px-3 py-2 outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSubtask(subtask._id)}
-                        className="rounded-full bg-destructive/10 p-2 text-destructive"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <input type="text" value={subtask.title} onChange={(e) => setSubtasks(prev => prev.map(s => s._id === subtask._id ? { ...s, title: e.target.value } : s))} className="flex-1 bg-transparent outline-none text-sm" />
+                      <button type="button" onClick={() => setSubtasks(prev => prev.filter(s => s._id !== subtask._id))} className="text-destructive flex-shrink-0"><Trash2 size={14} /></button>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <input
-                    type="text"
-                    value={subtaskTitle}
-                    onChange={(e) => setSubtaskTitle(e.target.value)}
-                    className="w-full rounded-2xl border border-border bg-background px-3 py-2 outline-none"
-                    placeholder="Add a subtask"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddSubtask}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90"
-                  >
-                    <Plus size={16} /> Add
+                <div className="flex gap-2">
+                  <input type="text" value={subtaskTitle} onChange={(e) => setSubtaskTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSubtask())} className="flex-1 rounded-xl border border-border bg-card px-3 py-2 outline-none text-sm" placeholder="Add a subtask" />
+                  <button type="button" onClick={handleAddSubtask} className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-primary-foreground text-sm hover:bg-primary/90">
+                    <Plus size={14} /> Add
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="pt-4 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {loading ? "Saving..." : "Save Task"}
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border hover:bg-muted transition-colors text-sm">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 text-sm font-medium">
+                {loading ? "Saving..." : taskToEdit ? "Save Changes" : "Create Task"}
               </button>
             </div>
           </form>

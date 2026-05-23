@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
-import { CheckSquare, Clock, Users, Activity } from "lucide-react";
+import { CheckSquare, Clock, Users, Activity, ChevronRight } from "lucide-react";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -29,8 +29,6 @@ const Dashboard = () => {
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const pendingCount = tasks.filter((t) => t.status === "pending").length;
   const projectTasks = tasks.filter((t) => t.type === "project");
-  
-  // Collect all collaborators across tasks to get unique count
   const allCollaborators = tasks.reduce((acc, task) => {
     if (task.collaborators) {
       task.collaborators.forEach(c => {
@@ -40,122 +38,138 @@ const Dashboard = () => {
     return acc;
   }, []);
 
-  // Get recent activity (5 most recently created/updated tasks based on createdAt or updatedAt)
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
     .slice(0, 5);
 
+  const stats = [
+    { label: "Total Tasks", value: tasks.length, color: "text-primary", bg: "bg-primary/10", icon: CheckSquare },
+    { label: "Completed", value: completedCount, color: "text-emerald-500", bg: "bg-emerald-500/10", icon: CheckSquare },
+    { label: "Projects", value: projectTasks.length, color: "text-indigo-500", bg: "bg-indigo-500/10", icon: Activity },
+    { label: "Team", value: allCollaborators.length, color: "text-amber-500", bg: "bg-amber-500/10", icon: Users },
+  ];
+
   return (
-    <div className="space-y-6 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-5 pb-4">
+      {/* Header */}
+      <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Hello, {user?.name} 👋</h1>
-          <p className="text-muted-foreground mt-1">Here is your daily task overview.</p>
+          <p className="text-sm text-muted-foreground">Good day,</p>
+          <h1 className="text-2xl md:text-3xl font-bold">{user?.name} 👋</h1>
+        </div>
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-lg">
+          {user?.name?.charAt(0).toUpperCase()}
         </div>
       </header>
 
       {loading ? (
-        <div className="text-center text-muted-foreground mt-20">Loading dashboard...</div>
+        <div className="text-center text-muted-foreground mt-20">Loading...</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-muted-foreground">Total Tasks</h3>
-                <p className="text-4xl font-bold mt-2">{tasks.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <CheckSquare size={24} />
-              </div>
-            </motion.div>
-            
-            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-muted-foreground">Completed</h3>
-                <p className="text-4xl font-bold mt-2 text-emerald-500">{completedCount}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                <CheckSquare size={24} />
-              </div>
-            </motion.div>
-
-            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-muted-foreground">Active Projects</h3>
-                <p className="text-4xl font-bold mt-2 text-indigo-500">{projectTasks.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                <Activity size={24} />
-              </div>
-            </motion.div>
-
-            <motion.div whileHover={{ y: -5 }} className="p-6 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-muted-foreground">Collaborators</h3>
-                <p className="text-4xl font-bold mt-2 text-amber-500">{allCollaborators.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <Users size={24} />
-              </div>
-            </motion.div>
+          {/* Stats grid - 2x2 on mobile, 4 cols on desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={stat.label}
+                  whileHover={{ y: -3 }}
+                  className="p-4 md:p-6 rounded-2xl bg-card border border-border shadow-sm"
+                >
+                  <div className={`w-9 h-9 rounded-full ${stat.bg} flex items-center justify-center ${stat.color} mb-3`}>
+                    <Icon size={18} />
+                  </div>
+                  <p className={`text-2xl md:text-4xl font-bold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground mt-1">{stat.label}</p>
+                </motion.div>
+              );
+            })}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <Clock size={20} className="text-primary" /> Recent Activity
-                </h2>
-                <button onClick={() => navigate('/tasks')} className="text-sm text-primary hover:underline">
-                  View All
-                </button>
+          {/* Progress bar */}
+          {tasks.length > 0 && (
+            <div className="bg-card rounded-2xl border border-border p-4 md:p-6">
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-medium text-sm md:text-base">Overall Progress</p>
+                <p className="text-sm font-bold text-primary">
+                  {Math.round((completedCount / tasks.length) * 100)}%
+                </p>
               </div>
-              <div className="space-y-4">
-                {recentTasks.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No recent activity.</p>
-                ) : (
-                  recentTasks.map(task => (
-                    <div 
-                      key={task._id} 
-                      onClick={() => navigate(task.type === 'project' ? `/project/${task._id}` : `/task/${task._id}`)}
-                      className="p-4 rounded-xl border border-border hover:border-primary/50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className={`font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>{task.title}</h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {task.type === 'project' ? 'Project' : 'Task'} • {task.priority} Priority
-                          </p>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(completedCount / tasks.length) * 100}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className="h-full rounded-full bg-primary"
+                />
               </div>
+              <p className="text-xs text-muted-foreground mt-2">{completedCount} of {tasks.length} tasks completed</p>
             </div>
+          )}
 
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <h2 className="text-xl font-semibold mb-6">Quick Navigation</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={() => navigate('/tasks')} 
-                  className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/50 transition-colors"
-                >
-                  <CheckSquare size={32} className="text-primary" />
-                  <span className="font-medium">My Tasks</span>
-                </button>
-                <button 
-                  onClick={() => navigate('/calendar')} 
-                  className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/50 transition-colors"
-                >
-                  <Activity size={32} className="text-primary" />
-                  <span className="font-medium">Calendar</span>
-                </button>
-              </div>
+          {/* Recent Activity */}
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-4 md:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2 text-base md:text-lg">
+                <Clock size={18} className="text-primary" /> Recent Activity
+              </h2>
+              <button
+                onClick={() => navigate('/tasks')}
+                className="text-xs text-primary flex items-center gap-1 hover:underline"
+              >
+                View All <ChevronRight size={14} />
+              </button>
             </div>
+            <div className="space-y-2">
+              {recentTasks.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-6">No recent activity.</p>
+              ) : (
+                recentTasks.map(task => (
+                  <div
+                    key={task._id}
+                    onClick={() => navigate(task.type === 'project' ? `/project/${task._id}` : `/task/${task._id}`)}
+                    className="flex items-center justify-between p-3 rounded-xl border border-border hover:border-primary/40 cursor-pointer transition-colors active:bg-muted"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`font-medium text-sm truncate ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {task.type === 'project' ? 'Project' : 'Task'} · {task.priority}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+                        {task.status}
+                      </span>
+                      <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Quick Nav */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate('/tasks')}
+              className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-card hover:bg-primary/5 hover:border-primary/50 transition-colors active:scale-95"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <CheckSquare size={20} />
+              </div>
+              <span className="font-medium text-sm">My Tasks</span>
+            </button>
+            <button
+              onClick={() => navigate('/calendar')}
+              className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-card hover:bg-primary/5 hover:border-primary/50 transition-colors active:scale-95"
+            >
+              <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                <Activity size={20} />
+              </div>
+              <span className="font-medium text-sm">Calendar</span>
+            </button>
           </div>
         </>
       )}
