@@ -48,6 +48,23 @@ const MyTasks = () => {
 
   useEffect(() => { fetchTasks(); }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setTaskToEdit(null);
+        setIsModalOpen(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsAIChatOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -66,7 +83,7 @@ const MyTasks = () => {
     try {
       await api.put(`/tasks/${task._id}`, { status: newStatus });
       setTasks(tasks.map((t) => t._id === task._id ? { ...t, status: newStatus } : t));
-    } catch (error) {
+    } catch {
       toast.error("Failed to update status");
     }
   };
@@ -77,7 +94,7 @@ const MyTasks = () => {
       await api.delete(`/tasks/${id}`);
       setTasks(tasks.filter((t) => t._id !== id));
       toast.success("Task deleted");
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete task");
     }
   };
@@ -106,14 +123,14 @@ const MyTasks = () => {
         if (!b.dueDate) return -1;
         return new Date(a.dueDate) - new Date(b.dueDate);
       }
-      return a.order - b.order;
+      return (a.order ?? 0) - (b.order ?? 0);
     });
 
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const hasActiveFilters = selectedPriority !== "All" || selectedCategory !== "All" || searchTerm;
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-6">
       {/* Header */}
       <header className="flex items-center justify-between">
         <div>
@@ -125,14 +142,14 @@ const MyTasks = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsAIChatOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 md:px-5 md:py-3 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
+            className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
           >
-            <Sparkles size={16} />
+            <Sparkles size={15} />
             <span className="hidden sm:inline">AI Create</span>
           </button>
           <button
             onClick={() => { setTaskToEdit(null); setIsModalOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 md:px-6 md:py-3 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20"
+            className="flex items-center gap-1.5 px-3 py-2 md:px-5 md:py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20"
           >
             <Plus size={18} />
             <span className="hidden sm:inline">New Task</span>
@@ -140,16 +157,20 @@ const MyTasks = () => {
         </div>
       </header>
 
-      {/* Search + Filter row */}
+      {/* Keyboard shortcuts hint */}
+      <div className="hidden md:flex gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">⌘N</kbd> New task</span>
+        <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">⌘K</kbd> AI create</span>
+      </div>
+
+      {/* Search + Filter */}
       <div className="flex gap-2">
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm"
+            type="text" placeholder="Search tasks..."
+            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm"
           />
           {searchTerm && (
             <button onClick={() => setSearchTerm("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -161,37 +182,27 @@ const MyTasks = () => {
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${showFilters || hasActiveFilters ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-background border-border text-muted-foreground'}`}
         >
-          <SlidersHorizontal size={16} />
+          <SlidersHorizontal size={15} />
           <span className="hidden sm:inline">Filters</span>
           {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-primary" />}
         </button>
       </div>
 
-      {/* Expandable filters */}
       {showFilters && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
-            className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm"
-          >
+          <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)}
+            className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm">
             <option value="All">All priorities</option>
             <option value="High">High</option>
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm"
-          >
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm">
             {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
           </select>
-          <select
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm col-span-2 md:col-span-1"
-          >
+          <select value={sortOption} onChange={(e) => setSortOption(e.target.value)}
+            className="w-full p-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary outline-none text-sm col-span-2 md:col-span-1">
             <option value="order">Custom order</option>
             <option value="dueDate">Due date</option>
             <option value="priority">Priority</option>
@@ -199,7 +210,7 @@ const MyTasks = () => {
         </div>
       )}
 
-      {/* Stats pills */}
+      {/* Status pills */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {[
           { label: "pending", color: "bg-amber-500/10 text-amber-600" },
@@ -215,7 +226,7 @@ const MyTasks = () => {
       {/* Task list */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-4 md:p-6 min-h-[300px]">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-base md:text-lg">Your Tasks</h2>
+          <h2 className="font-semibold text-base">Your Tasks</h2>
           <span className="text-xs text-muted-foreground">{filteredTasks.length} shown</span>
         </div>
 
@@ -226,16 +237,16 @@ const MyTasks = () => {
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center text-muted-foreground py-16 flex flex-col items-center">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-              <CheckSquare size={32} />
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
+              <CheckSquare size={28} />
             </div>
             <p className="font-medium">No tasks found</p>
             <p className="text-sm opacity-70 mt-1">Try adjusting filters or create a new task</p>
             <button
-              onClick={() => setIsAIChatOpen(true)}
-              className="mt-4 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-xl text-sm font-medium active:scale-95"
+              onClick={() => { setTaskToEdit(null); setIsModalOpen(true); }}
+              className="mt-4 flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium active:scale-95"
             >
-              <Sparkles size={16} /> Create with AI
+              <Plus size={16} /> Create Task
             </button>
           </div>
         ) : (
@@ -259,7 +270,13 @@ const MyTasks = () => {
         )}
       </div>
 
-      <TaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} taskToEdit={taskToEdit} onTaskSaved={fetchTasks} />
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setTaskToEdit(null); }}
+        taskToEdit={taskToEdit}
+        onTaskSaved={fetchTasks}
+        existingTasks={tasks}
+      />
       <CollaboratorModal isOpen={!!collaboratorTask} onClose={() => setCollaboratorTask(null)} task={collaboratorTask} onTaskSaved={handleCollaboratorUpdate} />
       <AIChatModal isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} onTaskCreated={fetchTasks} />
     </div>

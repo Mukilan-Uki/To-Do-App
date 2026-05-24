@@ -14,6 +14,7 @@ import Calendar from "./pages/Calendar";
 import AdminUsers from "./pages/AdminUsers";
 import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -24,18 +25,12 @@ const ProtectedRoute = ({ children, requireAdmin }) => {
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (requireAdmin && user.role !== "admin") {
-    return <Navigate to="/" replace />;
-  }
-
+  if (!user) return <Navigate to="/login" replace />;
+  if (requireAdmin && user.role !== "admin") return <Navigate to="/" replace />;
   return children;
 };
 
@@ -47,13 +42,7 @@ function App() {
       <Routes>
         <Route
           path="/login"
-          element={
-            user ? (
-              <Navigate to={user.role === "admin" ? "/admin" : "/"} replace />
-            ) : (
-              <Login />
-            )
-          }
+          element={user ? <Navigate to={user.role === "admin" ? "/admin" : "/"} replace /> : <Login />}
         />
         <Route
           path="/register"
@@ -65,70 +54,18 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                {user?.role === "admin" ? (
-                  <Navigate to="/admin" replace />
-                ) : (
-                  <Dashboard />
-                )}
+                {user?.role === "admin" ? <Navigate to="/admin" replace /> : <Dashboard />}
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/tasks"
-            element={
-              <ProtectedRoute>
-                <MyTasks />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/project/:id"
-            element={
-              <ProtectedRoute>
-                <ProjectDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/task/:id"
-            element={
-              <ProtectedRoute>
-                <SimpleTaskDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute>
-                <Calendar />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requireAdmin={true}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute requireAdmin={true}>
-                <AdminUsers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/settings"
-            element={
-              <ProtectedRoute requireAdmin={true}>
-                <AdminSettings />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/tasks" element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
+          <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+          <Route path="/task/:id" element={<ProtectedRoute><SimpleTaskDetail /></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

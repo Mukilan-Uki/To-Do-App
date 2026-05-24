@@ -1,10 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Send, Bot, Sparkles, Loader2, CheckCircle } from "lucide-react";
+import { X, Send, Bot, Sparkles, Loader2, CheckCircle, ChevronDown } from "lucide-react";
 import api from "../services/api";
 import toast from "react-hot-toast";
-
-const SYSTEM_PROMPT_HINT = `You are a smart task creation assistant.`;
 
 const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
   const [messages, setMessages] = useState([
@@ -15,6 +13,7 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
   const [pendingTask, setPendingTask] = useState(null);
   const [creatingTask, setCreatingTask] = useState(false);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -25,14 +24,24 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
       setMessages([{ role: "assistant", content: "Hi! I'm your AI task assistant. Tell me what task you'd like to create, and I'll help you set it up! 🚀" }]);
       setInput("");
       setPendingTask(null);
+    } else {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
+  }, [isOpen]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
   const extractTask = (text) => {
     const match = text.match(/<task>([\s\S]*?)<\/task>/);
-    if (match) {
-      try { return JSON.parse(match[1].trim()); } catch (e) { return null; }
-    }
+    if (match) { try { return JSON.parse(match[1].trim()); } catch { return null; } }
     return null;
   };
 
@@ -40,33 +49,27 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
-
     const userMessage = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-
     try {
-      // Call our own backend proxy — no CORS issues
       const { data } = await api.post("/ai/chat", {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
       });
-
       const aiText = data.content || "Sorry, I couldn't process that.";
       const task = extractTask(aiText);
       const cleanedText = cleanMessage(aiText);
-
       if (task) setPendingTask(task);
-
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: cleanedText || (task ? "I've prepared this task for you! Review it below and click 'Create Task' to add it." : "How can I help?")
+        content: cleanedText || (task ? "I've prepared this task for you! Click 'Create Task' to add it." : "How can I help?")
       }]);
     } catch (error) {
-      const msg = error.response?.data?.message || "AI service unavailable. Please check your server is running.";
+      const msg = error.response?.data?.message || "AI service unavailable.";
       toast.error(msg);
-      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I'm having trouble connecting right now. Make sure the backend server is running!" }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I'm having trouble connecting right now." }]);
     } finally {
       setLoading(false);
     }
@@ -91,9 +94,8 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
           order: i,
         }));
       }
-
       await api.post("/tasks", taskData);
-      toast.success("Task created successfully! 🎉");
+      toast.success("Task created! 🎉");
       onTaskCreated?.();
       setPendingTask(null);
       setMessages(prev => [...prev, {
@@ -115,41 +117,59 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 40 }}
-          className="w-full sm:max-w-lg h-[85vh] sm:h-[600px] bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+      />
+
+      {/* Modal */}
+      <motion.div
+        initial={{ opacity: 0, y: "100%" }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 350 }}
+        className="fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4"
+      >
+        <div
+          className="bg-card w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl border border-border flex flex-col"
+          style={{ height: "min(90vh, 640px)", maxHeight: "90dvh" }}
+          onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-violet-500/10 to-indigo-500/10">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-violet-500/10 to-indigo-500/10 rounded-t-2xl flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-violet-500/20 flex items-center justify-center">
-                <Bot size={20} className="text-violet-500" />
+                <Bot size={18} className="text-violet-500" />
               </div>
               <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  AI Task Assistant <Sparkles size={14} className="text-amber-500" />
+                <h2 className="font-semibold text-sm flex items-center gap-1.5">
+                  AI Task Assistant <Sparkles size={13} className="text-amber-500" />
                 </h2>
-                <p className="text-xs text-muted-foreground">Powered by DeepSeek</p>
+                <p className="text-[10px] text-muted-foreground">Powered by DeepSeek</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-muted transition-colors">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            >
               <X size={18} />
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Messages — scrollable */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 {msg.role === "assistant" && (
                   <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
-                    <Bot size={14} className="text-violet-500" />
+                    <Bot size={13} className="text-violet-500" />
                   </div>
                 )}
-                <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground rounded-br-sm"
                     : "bg-muted text-foreground rounded-bl-sm"
@@ -162,10 +182,10 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
             {loading && (
               <div className="flex justify-start">
                 <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center mr-2 flex-shrink-0">
-                  <Bot size={14} className="text-violet-500" />
+                  <Bot size={13} className="text-violet-500" />
                 </div>
                 <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-2">
-                  <Loader2 size={16} className="animate-spin text-violet-500" />
+                  <Loader2 size={14} className="animate-spin text-violet-500" />
                   <span className="text-sm text-muted-foreground">Thinking...</span>
                 </div>
               </div>
@@ -175,57 +195,59 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
 
           {/* Pending Task Preview */}
           {pendingTask && (
-            <div className="mx-4 mb-2 p-3 rounded-xl border border-violet-500/30 bg-violet-500/5">
-              <div className="flex items-start justify-between gap-2">
+            <div className="mx-3 mb-2 p-3 rounded-xl border border-violet-500/30 bg-violet-500/5 flex-shrink-0">
+              <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-violet-500 uppercase tracking-wider mb-1">Task Ready</p>
+                  <p className="text-[10px] font-semibold text-violet-500 uppercase tracking-wider mb-1">Task Ready</p>
                   <p className="font-medium text-sm truncate">{pendingTask.title}</p>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{pendingTask.priority}</span>
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{pendingTask.category}</span>
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full capitalize">{pendingTask.type}</span>
-                    {pendingTask.dueDate && <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{pendingTask.dueDate}</span>}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{pendingTask.priority}</span>
+                    <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{pendingTask.category}</span>
+                    {pendingTask.dueDate && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{pendingTask.dueDate}</span>}
                   </div>
-                  {pendingTask.subtasks?.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">{pendingTask.subtasks.length} subtasks included</p>
-                  )}
                 </div>
                 <button
                   onClick={handleCreateTask}
                   disabled={creatingTask}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-violet-500 text-white rounded-xl text-sm font-medium hover:bg-violet-600 transition-colors disabled:opacity-50 flex-shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-violet-500 text-white rounded-xl text-xs font-medium hover:bg-violet-600 transition-colors disabled:opacity-50 flex-shrink-0"
                 >
-                  {creatingTask ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                  {creatingTask ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
                   Create
                 </button>
               </div>
             </div>
           )}
 
-          {/* Input */}
-          <div className="p-4 border-t border-border">
-            <div className="flex gap-2">
-              <input
-                type="text"
+          {/* Input — fixed at bottom */}
+          <div className="p-3 border-t border-border flex-shrink-0">
+            <div className="flex gap-2 items-end">
+              <textarea
+                ref={inputRef}
+                rows={1}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Describe your task..."
                 disabled={loading}
-                className="flex-1 p-3 rounded-xl bg-background border border-border text-sm focus:ring-2 focus:ring-violet-500 outline-none disabled:opacity-50"
+                className="flex-1 p-3 rounded-xl bg-background border border-border text-sm focus:ring-2 focus:ring-violet-500 outline-none disabled:opacity-50 resize-none overflow-hidden"
+                style={{ minHeight: "44px", maxHeight: "96px" }}
               />
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
-                className="p-3 bg-violet-500 text-white rounded-xl hover:bg-violet-600 transition-colors disabled:opacity-50"
+                className="p-3 bg-violet-500 text-white rounded-xl hover:bg-violet-600 transition-colors disabled:opacity-50 flex-shrink-0 self-end"
               >
-                <Send size={18} />
+                <Send size={16} />
               </button>
             </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">Press Enter to send</p>
+            <p className="text-[10px] text-muted-foreground text-center mt-1.5">Enter to send · Shift+Enter for new line</p>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 };
