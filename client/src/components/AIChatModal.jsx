@@ -14,6 +14,7 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
   const [creatingTask, setCreatingTask] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,6 +38,21 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
       document.body.style.overflow = "";
     }
     return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  // On mobile: when the virtual keyboard resizes the viewport, scroll input into view
+  useEffect(() => {
+    if (!isOpen) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      // Give the browser a frame to reflow, then scroll input into view
+      requestAnimationFrame(() => {
+        inputRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
   }, [isOpen]);
 
   const extractTask = (text) => {
@@ -123,20 +139,20 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
       />
 
-      {/* Modal */}
+      {/* Modal — centered on all screen sizes */}
       <motion.div
-        initial={{ opacity: 0, y: "100%" }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: "100%" }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
         transition={{ type: "spring", damping: 28, stiffness: 350 }}
-        className="fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4"
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       >
         <div
-          className="bg-card w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl border border-border flex flex-col"
-          style={{ height: "min(90vh, 640px)", maxHeight: "90dvh" }}
+          ref={modalRef}
+          className="bg-card w-full max-w-lg min-h-[70dvh] max-h-[90dvh] rounded-2xl shadow-2xl border border-border flex flex-col"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
@@ -218,8 +234,11 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
             </div>
           )}
 
-          {/* Input — fixed at bottom */}
-          <div className="p-3 border-t border-border flex-shrink-0">
+          {/* Input — always visible at bottom */}
+          <div
+            className="p-3 border-t border-border flex-shrink-0"
+            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+          >
             <div className="flex gap-2 items-end">
               <textarea
                 ref={inputRef}
@@ -231,6 +250,12 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
                   e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
                 }}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // Small delay to let the keyboard open, then scroll into view
+                  setTimeout(() => {
+                    inputRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                  }, 300);
+                }}
                 placeholder="Describe your task..."
                 disabled={loading}
                 className="flex-1 p-3 rounded-xl bg-background border border-border text-sm focus:ring-2 focus:ring-violet-500 outline-none disabled:opacity-50 resize-none overflow-hidden"
@@ -244,7 +269,7 @@ const AIChatModal = ({ isOpen, onClose, onTaskCreated }) => {
                 <Send size={16} />
               </button>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center mt-1.5">Enter to send · Shift+Enter for new line</p>
+            <p className="text-[10px] text-muted-foreground text-center mt-1.5 hidden sm:block">Enter to send · Shift+Enter for new line</p>
           </div>
         </div>
       </motion.div>

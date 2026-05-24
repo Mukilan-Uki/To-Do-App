@@ -19,7 +19,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
-  }
+  },
+  streak: {
+    type: Number,
+    default: 0,
+  },
+  lastCompletionDate: {
+    type: Date,
+    default: null,
+  },
+  productivityScore: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+  },
 }, { timestamps: true });
 
 // Hash password before saving

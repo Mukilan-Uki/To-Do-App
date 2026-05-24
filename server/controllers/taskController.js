@@ -1,5 +1,48 @@
 import Task from "../models/Task.js";
 import User from "../models/User.js";
+import Invitation from "../models/Invitation.js";
+
+// Helper: update user streak + productivity score after completing a task
+const updateStreakAndScore = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const lastDate = user.lastCompletionDate ? new Date(user.lastCompletionDate) : null;
+    if (lastDate) {
+      lastDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) {
+        // Already logged today — no streak change
+      } else if (diffDays === 1) {
+        user.streak += 1; // Consecutive day
+      } else {
+        user.streak = 1; // Streak broken
+      }
+    } else {
+      user.streak = 1; // First ever completion
+    }
+
+    user.lastCompletionDate = today;
+
+    // Count tasks completed today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const completedToday = await Task.countDocuments({
+      $or: [{ owner: userId }, { user: userId }],
+      status: 'completed',
+      updatedAt: { $gte: todayStart },
+    });
+    user.productivityScore = Math.min(completedToday * 20, 100);
+
+    await user.save();
+  } catch (err) {
+    console.error('Streak update error:', err.message);
+  }
+};
 
 const canAccessTask = (task, userId) => {
   const ownerId = task.owner 
@@ -139,6 +182,7 @@ export const updateTask = async (req, res) => {
         .json({ message: "Only the owner can update this field" });
     }
 
+    const wasCompleted = task.status === 'completed';
     task.title = req.body.title ?? task.title;
     task.description = req.body.description ?? task.description;
     task.priority = req.body.priority ?? task.priority;
@@ -167,6 +211,12 @@ export const updateTask = async (req, res) => {
     }
 
     await task.save();
+
+    // Update streak if task was just marked complete
+    if (!wasCompleted && task.status === 'completed') {
+      const ownerId = task.owner ? task.owner.toString() : task.user?.toString();
+      await updateStreakAndScore(ownerId);
+    }
 
     const updatedTask = await Task.findById(task._id)
       .populate("owner", "name email")
@@ -223,16 +273,14 @@ export const reorderTasks = async (req, res) => {
   }
 };
 
-// @desc    Add collaborator to task
+// @desc    Invite a collaborator to a task (creates a pending invitation)
 // @route   POST /api/tasks/:id/collaborators
 // @access  Private
 export const addCollaborator = async (req, res) => {
   try {
     const { invite } = req.body;
     if (!invite) {
-      return res
-        .status(400)
-        .json({ message: "Invite must include email or username" });
+      return res.status(400).json({ message: "Invite must include email or username" });
     }
 
     const task = await Task.findById(req.params.id);
@@ -241,9 +289,7 @@ export const addCollaborator = async (req, res) => {
     }
 
     if (!isTaskOwner(task, req.user._id)) {
-      return res
-        .status(401)
-        .json({ message: "Only the owner can invite collaborators" });
+      return res.status(401).json({ message: "Only the owner can invite collaborators" });
     }
 
     const collaborator = await User.findOne({
@@ -251,40 +297,45 @@ export const addCollaborator = async (req, res) => {
     });
 
     if (!collaborator) {
-      return res.status(404).json({ message: "Collaborator not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     const ownerId = task.owner ? task.owner.toString() : task.user?.toString();
     if (collaborator._id.toString() === ownerId) {
-      return res
-        .status(400)
-        .json({ message: "Owner is already part of the task" });
+      return res.status(400).json({ message: "Owner is already part of the task" });
     }
 
-    if (
-      task.collaborators.some(
-        (id) => id.toString() === collaborator._id.toString(),
-      )
-    ) {
-      return res
-        .status(400)
-        .json({ message: "User is already a collaborator" });
+    if (task.collaborators.some((id) => id.toString() === collaborator._id.toString())) {
+      return res.status(400).json({ message: "User is already a collaborator" });
     }
 
     if (task.collaborators.length >= 10) {
-      return res
-        .status(400)
-        .json({ message: "A task may have up to 10 collaborators" });
+      return res.status(400).json({ message: "A task may have up to 10 collaborators" });
     }
 
-    task.collaborators.push(collaborator._id);
-    await task.save();
+    // Check for an existing pending invitation
+    const existingInvite = await Invitation.findOne({
+      from: req.user._id,
+      to: collaborator._id,
+      task: task._id,
+      status: 'pending',
+    });
+    if (existingInvite) {
+      return res.status(400).json({ message: "An invitation has already been sent to this user" });
+    }
 
-    const updatedTask = await Task.findById(task._id)
-      .populate("owner", "name email")
-      .populate("collaborators", "name email");
+    const invitation = await Invitation.create({
+      from: req.user._id,
+      to: collaborator._id,
+      task: task._id,
+    });
 
-    res.json(updatedTask);
+    const populated = await Invitation.findById(invitation._id)
+      .populate('from', 'name email')
+      .populate('to', 'name email')
+      .populate('task', 'title');
+
+    res.status(201).json({ message: `Invitation sent to ${collaborator.name}`, invitation: populated });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

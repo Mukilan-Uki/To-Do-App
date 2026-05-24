@@ -81,12 +81,12 @@ const TaskModal = ({ isOpen, onClose, taskToEdit = null, onTaskSaved, existingTa
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 40 }}
-          className="w-full sm:max-w-md bg-card rounded-t-2xl sm:rounded-2xl shadow-xl border border-border overflow-hidden max-h-[92vh] flex flex-col"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="w-full max-w-md bg-card rounded-2xl shadow-xl border border-border overflow-hidden max-h-[85dvh] flex flex-col"
         >
           <div className="flex justify-between items-center p-4 md:p-5 border-b border-border flex-shrink-0">
             <h2 className="text-lg font-semibold">{taskToEdit ? "Edit Task" : "Create New Task"}</h2>
