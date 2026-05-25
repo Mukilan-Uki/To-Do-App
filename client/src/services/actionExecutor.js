@@ -27,6 +27,49 @@ export function findRoutineItem(routine, ref = {}) {
   return routine.items.find((i) => normalize(i.title).includes(title));
 }
 
+function mapRoutineItem(item, order = 0) {
+  return {
+    title: item.title || item.name || 'Activity',
+    time: item.time || item.startTime || '07:00',
+    duration: Number(item.duration) || 15,
+    category: item.category || 'general',
+    reminder: item.reminder !== false,
+    order: item.order ?? order,
+    completedDates: item.completedDates || [],
+  };
+}
+
+async function setDailyRoutineItems(items, { append = false } = {}) {
+  const routineRes = await api.get('/routines');
+  const routine = routineRes.data;
+  const mapped = items.map((item, i) => mapRoutineItem(item, i));
+
+  let finalItems = mapped;
+  if (append && routine?.items?.length) {
+    const startOrder = routine.items.length;
+    const existing = routine.items.map((i, idx) => ({
+      title: i.title,
+      time: i.time,
+      duration: i.duration ?? 15,
+      category: i.category || 'general',
+      reminder: i.reminder !== false,
+      order: i.order ?? idx,
+      completedDates: i.completedDates || [],
+    }));
+    finalItems = [
+      ...existing,
+      ...mapped.map((item, i) => mapRoutineItem(item, startOrder + i)),
+    ];
+  }
+
+  const { data } = await api.put('/routines', { items: finalItems });
+  return {
+    success: true,
+    message: `Saved ${mapped.length} routine step${mapped.length > 1 ? 's' : ''}`,
+    data,
+  };
+}
+
 function applyProjectProgress(task, percent) {
   const p = Math.min(100, Math.max(0, Number(percent) || 0));
   const total = task.subtasks?.length || 0;
@@ -134,7 +177,18 @@ export async function executeAction(rawAction, { tasks = [], routine = null } = 
       return { success: true, message: `Moved "${task.title}"` };
     }
 
+    case 'SET_DAILY_ROUTINE': {
+      const items = action.items || [];
+      if (!items.length) {
+        throw new Error('SET_DAILY_ROUTINE requires an items array with title and time');
+      }
+      return setDailyRoutineItems(items, { append: action.append });
+    }
+
     case 'CREATE_DAILY_ROUTINE': {
+      if (action.items?.length) {
+        return setDailyRoutineItems(action.items, { append: action.append });
+      }
       const { data } = await api.post('/routines/items', {
         title: action.title || action.routineTitle,
         time: action.time || '07:00',

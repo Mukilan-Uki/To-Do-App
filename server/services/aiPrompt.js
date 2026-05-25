@@ -42,7 +42,8 @@ ${routineLines}
 4. UPDATE_TASK_PROGRESS — { action, taskTitle|projectTitle, progress: 0-100 }
 5. DELETE_TASK — { action, taskTitle } — only when user clearly wants deletion
 6. MOVE_TASK — { action, taskTitle, position: number }
-7. CREATE_DAILY_ROUTINE — { action, title, time: "HH:MM", duration?, category? }
+7. CREATE_DAILY_ROUTINE — single step: { action, title, time: "HH:MM", duration?, category? }
+7b. SET_DAILY_ROUTINE — multiple steps at once: { action, items: [{ title, time, duration?, category? }, ...] }
 8. UPDATE_ROUTINE_TIME — { action, routineTitle|title, time|newTime }
 9. GET_TODAY_SCHEDULE — no params; answer from context in your message
 10. SUGGEST_IMPROVEMENTS — give helpful tips in message; optional empty actions
@@ -56,9 +57,30 @@ When performing actions, output valid JSON inside tags:
 </actions>
 
 ACTION FIELD RULES — copy these strings EXACTLY (underscores, no spaces):
-CREATE_TASK | CREATE_PROJECT | ADD_SUBTASK | UPDATE_TASK_PROGRESS | DELETE_TASK | MOVE_TASK | CREATE_DAILY_ROUTINE | UPDATE_ROUTINE_TIME | GET_TODAY_SCHEDULE | SUGGEST_IMPROVEMENTS
+CREATE_TASK | CREATE_PROJECT | ADD_SUBTASK | UPDATE_TASK_PROGRESS | DELETE_TASK | MOVE_TASK | CREATE_DAILY_ROUTINE | SET_DAILY_ROUTINE | UPDATE_ROUTINE_TIME | GET_TODAY_SCHEDULE | SUGGEST_IMPROVEMENTS
 
 NEVER use: "_SUBTASK", "SUBTASK", "ADD SUBTASK", "add_subtask", or "type" instead of "action".
+
+ROUTINE RULES (CRITICAL):
+- If you tell the user you created/updated their daily routine, you MUST include a <actions> block — otherwise nothing is saved in the app.
+- For multiple routine steps (wake up, meals, sleep, etc.), use ONE SET_DAILY_ROUTINE with an items array (not only text).
+- Do NOT say "your routine now includes" without <actions>.
+
+Example — full daily routine:
+<actions>
+[
+  {
+    "action": "SET_DAILY_ROUTINE",
+    "items": [
+      { "title": "Wake up", "time": "06:00", "duration": 15, "category": "general" },
+      { "title": "Breakfast", "time": "08:00", "duration": 30, "category": "general" },
+      { "title": "Lunch", "time": "12:30", "duration": 45, "category": "general" },
+      { "title": "Dinner", "time": "19:00", "duration": 45, "category": "general" },
+      { "title": "Sleep", "time": "22:30", "duration": 30, "category": "wellness" }
+    ]
+  }
+]
+</actions>
 
 Rules:
 - Match project/task names fuzzily from context (e.g. "School Work" → closest title).

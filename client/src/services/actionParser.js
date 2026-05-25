@@ -2,6 +2,8 @@ const ACTIONS_REGEX = /<actions>([\s\S]*?)<\/actions>/gi;
 
 export const DESTRUCTIVE_ACTIONS = ['DELETE_TASK'];
 
+import { BASIC_DAILY_ROUTINE_ITEMS } from './routineDefaults';
+
 export const CANONICAL_ACTIONS = [
   'CREATE_TASK',
   'CREATE_PROJECT',
@@ -10,6 +12,7 @@ export const CANONICAL_ACTIONS = [
   'DELETE_TASK',
   'MOVE_TASK',
   'CREATE_DAILY_ROUTINE',
+  'SET_DAILY_ROUTINE',
   'UPDATE_ROUTINE_TIME',
   'GET_TODAY_SCHEDULE',
   'SUGGEST_IMPROVEMENTS',
@@ -49,6 +52,9 @@ export function normalizeActionType(raw) {
     CREATEDAILYROUTINE: 'CREATE_DAILY_ROUTINE',
     CREATEROUTINE: 'CREATE_DAILY_ROUTINE',
     ADDROUTINE: 'CREATE_DAILY_ROUTINE',
+    SETDAILYROUTINE: 'SET_DAILY_ROUTINE',
+    SETROUTINE: 'SET_DAILY_ROUTINE',
+    REPLACEROUTINE: 'SET_DAILY_ROUTINE',
     UPDATEROUTINETIME: 'UPDATE_ROUTINE_TIME',
     UPDATEROUTINE: 'UPDATE_ROUTINE_TIME',
     MOVEROUTINE: 'UPDATE_ROUTINE_TIME',
@@ -65,8 +71,11 @@ export function normalizeActionType(raw) {
   if (s.includes('ROUTINE') && (s.includes('UPDATE') || s.includes('MOVE') || s.includes('TIME'))) {
     return 'UPDATE_ROUTINE_TIME';
   }
+  if (s.includes('ROUTINE') && (s.includes('SET') || s.includes('REPLACE') || s.includes('BULK'))) {
+    return 'SET_DAILY_ROUTINE';
+  }
   if (s.includes('ROUTINE') && (s.includes('CREATE') || s.includes('ADD'))) {
-    return 'CREATE_DAILY_ROUTINE';
+    return s.includes('ITEMS') || s.includes('MULTIPLE') ? 'SET_DAILY_ROUTINE' : 'CREATE_DAILY_ROUTINE';
   }
   if (s.includes('DELETE') || s.includes('REMOVE')) return 'DELETE_TASK';
   if (s.includes('PROGRESS') || s.includes('PERCENT') || s.includes('COMPLETE')) {
@@ -87,9 +96,19 @@ export function normalizeActionObject(obj) {
   const action = normalizeActionType(rawAction);
   const isSubtask = action === 'ADD_SUBTASK';
 
+  const items = Array.isArray(obj.items)
+    ? obj.items
+    : Array.isArray(obj.routineItems)
+      ? obj.routineItems
+      : Array.isArray(obj.routines)
+        ? obj.routines
+        : null;
+
   return {
     ...obj,
-    action,
+    action: items?.length && action === 'CREATE_DAILY_ROUTINE' ? 'SET_DAILY_ROUTINE' : action,
+    items,
+    append: obj.append === true || obj.mode === 'append',
     projectTitle:
       obj.projectTitle ?? obj.project ?? obj.projectName ?? obj.parentProject ?? obj.parent,
     subtaskTitle:
@@ -169,6 +188,33 @@ export function parseActionsFromResponse(text) {
     .trim();
 
   return { cleanText, actions, invalid };
+}
+
+/**
+ * AI often says "your routine now includes..." without <actions> JSON — infer a safe default.
+ */
+export function inferRoutineActionsIfMissing(actions, userMessage = '', aiText = '') {
+  if (actions?.length) return actions;
+
+  const user = (userMessage || '').toLowerCase();
+  const ai = (aiText || '').toLowerCase();
+  const userWantsRoutine =
+    /routine|schedule|wake\s*up|breakfast|lunch|dinner|sleep|daily\s*plan/.test(user);
+  const aiClaimsCreated =
+    /routine now includes|added.*routine|created.*routine|your daily routine|includes these activities|set up your routine/.test(
+      ai,
+    );
+
+  if (userWantsRoutine && (aiClaimsCreated || /create.*routine|build.*routine|set up.*routine/.test(user))) {
+    return [
+      {
+        action: 'SET_DAILY_ROUTINE',
+        items: BASIC_DAILY_ROUTINE_ITEMS,
+      },
+    ];
+  }
+
+  return [];
 }
 
 export function formatActionSummary(action) {

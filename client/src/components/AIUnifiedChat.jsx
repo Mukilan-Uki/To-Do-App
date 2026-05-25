@@ -6,7 +6,12 @@ import {
 import toast from 'react-hot-toast';
 import { useAIAssistant } from '../context/AIAssistantContext';
 import { streamUnifiedMessage, sendUnifiedMessage } from '../services/aiService';
-import { parseActionsFromResponse, DESTRUCTIVE_ACTIONS, formatActionSummary } from '../services/actionParser';
+import {
+  parseActionsFromResponse,
+  DESTRUCTIVE_ACTIONS,
+  formatActionSummary,
+  inferRoutineActionsIfMissing,
+} from '../services/actionParser';
 import { executeActions } from '../services/actionExecutor';
 import AIConfirmModal from './AIConfirmModal';
 
@@ -66,9 +71,20 @@ const AIUnifiedChat = () => {
     [refreshContext, notifyDataChanged]
   );
 
+  const lastUserMessageRef = useRef('');
+
   const processAIResponse = useCallback(
     async (fullText) => {
-      const { cleanText, actions, invalid } = parseActionsFromResponse(fullText);
+      let { cleanText, actions, invalid } = parseActionsFromResponse(fullText);
+      const inferred = inferRoutineActionsIfMissing(
+        actions,
+        lastUserMessageRef.current,
+        fullText,
+      );
+      if (inferred.length && !actions.length) {
+        actions = inferred;
+      }
+
       const safe = actions.filter((a) => !DESTRUCTIVE_ACTIONS.includes(a.action));
       const destructive = actions.filter((a) => DESTRUCTIVE_ACTIONS.includes(a.action));
 
@@ -81,9 +97,20 @@ const AIUnifiedChat = () => {
       if (safe.length) {
         const results = await runActions(safe);
         const done = results.filter((r) => r.success && !r.skipped);
+        const failed = results.filter((r) => r.success === false);
         if (done.length) {
           actionNote = `\n\n✅ Done: ${done.map((r) => r.message).join(' · ')}`;
         }
+        if (failed.length) {
+          actionNote += `\n\n❌ ${failed.map((r) => r.message).join(' · ')}`;
+        }
+      } else if (
+        /routine/i.test(lastUserMessageRef.current) &&
+        !/<actions>/i.test(fullText)
+      ) {
+        toast.error(
+          'No routine was saved — the AI replied without commands. Try: "Set my daily routine with wake up 6am, breakfast 8am, lunch 12:30, dinner 7pm, sleep 10:30pm"',
+        );
       }
       if (destructive.length) {
         setPendingDestructive(destructive);
@@ -98,6 +125,7 @@ const AIUnifiedChat = () => {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
     const userMsg = { role: 'user', content: input.trim() };
+    lastUserMessageRef.current = userMsg.content;
     const history = [...messages.filter((m) => m.role !== 'system'), userMsg];
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
