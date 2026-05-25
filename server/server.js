@@ -8,6 +8,7 @@ import taskRoutes from './routes/taskRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import invitationRoutes from './routes/invitationRoutes.js';
+import routineRoutes from './routes/routineRoutes.js';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/routines', routineRoutes);
 
 // Base route
 app.get('/', (req, res) => {

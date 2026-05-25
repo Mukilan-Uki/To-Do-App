@@ -3,7 +3,6 @@ import api from '../services/api';
 import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext({});
-
 export const useNotifications = () => useContext(NotificationContext);
 
 export const NotificationProvider = ({ children }) => {
@@ -16,7 +15,7 @@ export const NotificationProvider = ({ children }) => {
     try {
       setLoading(true);
       const { data } = await api.get('/invitations');
-      setInvitations(data);
+      setInvitations(Array.isArray(data) ? data : []);
     } catch {
       // silent
     } finally {
@@ -24,45 +23,35 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Poll every 30 seconds
   useEffect(() => {
     if (!user) { setInvitations([]); return; }
     fetchInvitations();
-    const interval = setInterval(fetchInvitations, 30000);
+    const interval = setInterval(fetchInvitations, 20000);
     return () => clearInterval(interval);
   }, [user, fetchInvitations]);
 
   const acceptInvitation = async (id) => {
-    try {
-      await api.put(`/invitations/${id}/accept`);
-      setInvitations((prev) => prev.filter((inv) => inv._id !== id));
-      return true;
-    } catch (err) {
-      throw err;
-    }
+    await api.put(`/invitations/${id}/accept`);
+    setInvitations(prev => prev.filter(inv => inv._id !== id));
+    // Trigger a page reload or task refresh after acceptance
+    return true;
   };
 
   const rejectInvitation = async (id) => {
-    try {
-      await api.put(`/invitations/${id}/reject`);
-      setInvitations((prev) => prev.filter((inv) => inv._id !== id));
-      return true;
-    } catch (err) {
-      throw err;
-    }
+    await api.put(`/invitations/${id}/reject`);
+    setInvitations(prev => prev.filter(inv => inv._id !== id));
+    return true;
   };
 
   return (
-    <NotificationContext.Provider
-      value={{
-        invitations,
-        pendingCount: invitations.length,
-        loading,
-        refresh: fetchInvitations,
-        acceptInvitation,
-        rejectInvitation,
-      }}
-    >
+    <NotificationContext.Provider value={{
+      invitations,
+      pendingCount: invitations.length,
+      loading,
+      refresh: fetchInvitations,
+      acceptInvitation,
+      rejectInvitation,
+    }}>
       {children}
     </NotificationContext.Provider>
   );

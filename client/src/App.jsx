@@ -15,6 +15,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import DailyRoutine from "./pages/DailyRoutine";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -62,6 +63,7 @@ function App() {
           <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
           <Route path="/task/:id" element={<ProtectedRoute><SimpleTaskDetail /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+          <Route path="/routine" element={<ProtectedRoute><DailyRoutine /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
