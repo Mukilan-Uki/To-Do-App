@@ -5,14 +5,16 @@ import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { AIAssistantProvider } from './context/AIAssistantContext';
 import { Toaster } from 'react-hot-toast';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider>
       <AuthProvider>
-        <NotificationProvider>
-          <App />
+        <AIAssistantProvider>
+          <NotificationProvider>
+            <App />
           <Toaster
             position="top-right"
             toastOptions={{
@@ -24,7 +26,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               },
             }}
           />
-        </NotificationProvider>
+          </NotificationProvider>
+        </AIAssistantProvider>
       </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>,

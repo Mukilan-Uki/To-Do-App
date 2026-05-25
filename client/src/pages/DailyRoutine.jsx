@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import RoutineHealthAssistant from '../components/RoutineHealthAssistant';
+import { useAIAssistant } from '../context/AIAssistantContext';
 import {
   todayKey,
   formatTime12,
@@ -36,7 +36,7 @@ const DailyRoutine = () => {
   const [routine, setRoutine] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [showAI, setShowAI] = useState(false);
+  const { openAssistant, dataVersion } = useAIAssistant();
   const [nowTick, setNowTick] = useState(Date.now());
   const [newItem, setNewItem] = useState({
     title: '',
@@ -59,7 +59,7 @@ const DailyRoutine = () => {
 
   useEffect(() => {
     fetchRoutine();
-  }, [fetchRoutine]);
+  }, [fetchRoutine, dataVersion]);
 
   useEffect(() => {
     const t = setInterval(() => setNowTick(Date.now()), 60000);
@@ -134,10 +134,8 @@ const DailyRoutine = () => {
       setShowAdd(false);
       setNewItem({ title: '', time: '07:00', duration: 15, category: 'general', reminder: true });
       toast.success('Routine step added');
-      if (isHealthCategory(newItem.category) && !hasHealthItems) {
-        setShowAI(true);
-      } else if (isHealthCategory(newItem.category)) {
-        setShowAI(true);
+      if (isHealthCategory(newItem.category)) {
+        openAssistant();
       }
     } catch {
       toast.error('Failed to add item');
@@ -163,19 +161,6 @@ const DailyRoutine = () => {
     }
   };
 
-  const handleApplyAISuggestions = async (suggestions) => {
-    const improved = suggestions.improvedItems?.map((item, i) => ({
-      title: item.title,
-      time: item.time,
-      duration: item.duration || 15,
-      category: item.category || 'health',
-      reminder: true,
-      order: i,
-    }));
-    if (!improved?.length) return;
-    await saveRoutine({ items: improved });
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -198,7 +183,7 @@ const DailyRoutine = () => {
         <div className="flex flex-wrap gap-2">
           {hasHealthItems && (
             <button
-              onClick={() => setShowAI(true)}
+              onClick={openAssistant}
               className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 text-white text-sm font-bold shadow-lg shadow-rose-500/25 hover:opacity-95 transition-opacity"
             >
               <Sparkles size={16} /> AI Coach
@@ -456,12 +441,6 @@ const DailyRoutine = () => {
         )}
       </AnimatePresence>
 
-      <RoutineHealthAssistant
-        isOpen={showAI}
-        onClose={() => setShowAI(false)}
-        routineItems={items}
-        onApplySuggestions={handleApplyAISuggestions}
-      />
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import TaskItem from "../components/TaskItem";
 import TaskModal from "../components/TaskModal";
 import CollaboratorModal from "../components/CollaboratorModal";
-import AIChatModal from "../components/AIChatModal";
+import { useAIAssistant } from "../context/AIAssistantContext";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
 } from "@dnd-kit/core";
@@ -27,7 +27,7 @@ const MyTasks = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("order");
   const [collaboratorTask, setCollaboratorTask] = useState(null);
-  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const { openAssistant, dataVersion } = useAIAssistant();
   const [showFilters, setShowFilters] = useState(false);
 
   const sensors = useSensors(
@@ -46,7 +46,7 @@ const MyTasks = () => {
     }
   };
 
-  useEffect(() => { fetchTasks(); }, []);
+  useEffect(() => { fetchTasks(); }, [dataVersion]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -141,11 +141,11 @@ const MyTasks = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsAIChatOpen(true)}
+            onClick={openAssistant}
             className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
           >
             <Sparkles size={15} />
-            <span className="hidden sm:inline">AI Create</span>
+            <span className="hidden sm:inline">AI Assistant</span>
           </button>
           <button
             onClick={() => { setTaskToEdit(null); setIsModalOpen(true); }}
@@ -278,7 +278,6 @@ const MyTasks = () => {
         existingTasks={tasks}
       />
       <CollaboratorModal isOpen={!!collaboratorTask} onClose={() => setCollaboratorTask(null)} task={collaboratorTask} onTaskSaved={handleCollaboratorUpdate} />
-      <AIChatModal isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} onTaskCreated={fetchTasks} />
     </div>
   );
 };

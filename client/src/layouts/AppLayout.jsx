@@ -2,10 +2,12 @@ import React, { useState, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar, { MobileSidebar } from '../components/Sidebar';
 import NotificationPanel from '../components/NotificationPanel';
-import { Menu, Bell } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import AIUnifiedChat from '../components/AIUnifiedChat';
+import { Menu, Bell, Sparkles } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useAIAssistant } from '../context/AIAssistantContext';
 
 const AppLayout = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -14,6 +16,7 @@ const AppLayout = () => {
   const { user } = useAuth();
   const { pendingCount } = useNotifications();
   const isAdmin = user?.role === 'admin';
+  const { openAssistant } = useAIAssistant();
 
   return (
     <div className="flex h-screen bg-background overflow-hidden bg-shapes">
@@ -79,6 +82,21 @@ const AppLayout = () => {
             <Outlet />
           </div>
         </main>
+
+        {!isAdmin && (
+          <motion.button
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={openAssistant}
+            className="fixed bottom-6 right-4 md:right-8 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 text-white shadow-xl shadow-violet-500/30 flex items-center justify-center safe-area-pb"
+            aria-label="Open AI assistant"
+          >
+            <Sparkles size={24} />
+          </motion.button>
+        )}
+        {!isAdmin && <AIUnifiedChat />}
       </div>
     </div>
   );
