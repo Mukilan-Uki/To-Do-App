@@ -47,13 +47,18 @@ ${routineLines}
 9. GET_TODAY_SCHEDULE — no params; answer from context in your message
 10. SUGGEST_IMPROVEMENTS — give helpful tips in message; optional empty actions
 
-=== OUTPUT FORMAT ===
-When performing actions, output:
+=== OUTPUT FORMAT (CRITICAL) ===
+When performing actions, output valid JSON inside tags:
 <actions>
 [
   { "action": "ADD_SUBTASK", "projectTitle": "AI", "subtaskTitle": "read research papers" }
 ]
 </actions>
+
+ACTION FIELD RULES — copy these strings EXACTLY (underscores, no spaces):
+CREATE_TASK | CREATE_PROJECT | ADD_SUBTASK | UPDATE_TASK_PROGRESS | DELETE_TASK | MOVE_TASK | CREATE_DAILY_ROUTINE | UPDATE_ROUTINE_TIME | GET_TODAY_SCHEDULE | SUGGEST_IMPROVEMENTS
+
+NEVER use: "_SUBTASK", "SUBTASK", "ADD SUBTASK", "add_subtask", or "type" instead of "action".
 
 Rules:
 - Match project/task names fuzzily from context (e.g. "School Work" → closest title).

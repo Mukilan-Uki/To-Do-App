@@ -1,4 +1,5 @@
 import api from './api';
+import { normalizeActionType, normalizeActionObject, CANONICAL_ACTIONS } from './actionParser';
 
 function normalize(str) {
   return (str || '').toLowerCase().trim();
@@ -40,8 +41,15 @@ function applyProjectProgress(task, percent) {
 /**
  * Execute a single AI action against the API.
  */
-export async function executeAction(action, { tasks = [], routine = null } = {}) {
-  const type = action.action;
+export async function executeAction(rawAction, { tasks = [], routine = null } = {}) {
+  const action = normalizeActionObject(rawAction) || rawAction;
+  const type = normalizeActionType(action.action);
+
+  if (!type || !CANONICAL_ACTIONS.includes(type)) {
+    throw new Error(
+      `Unknown action: ${rawAction?.action ?? rawAction?.type ?? 'missing'}. Use names like ADD_SUBTASK, CREATE_TASK.`,
+    );
+  }
 
   switch (type) {
     case 'CREATE_TASK': {
@@ -173,7 +181,7 @@ export async function executeAction(action, { tasks = [], routine = null } = {})
       };
 
     default:
-      throw new Error(`Unknown action: ${type}`);
+      throw new Error(`Unhandled action: ${type}`);
   }
 }
 

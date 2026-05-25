@@ -68,11 +68,16 @@ const AIUnifiedChat = () => {
 
   const processAIResponse = useCallback(
     async (fullText) => {
-      const { cleanText, actions } = parseActionsFromResponse(fullText);
+      const { cleanText, actions, invalid } = parseActionsFromResponse(fullText);
       const safe = actions.filter((a) => !DESTRUCTIVE_ACTIONS.includes(a.action));
       const destructive = actions.filter((a) => DESTRUCTIVE_ACTIONS.includes(a.action));
 
       let actionNote = '';
+      if (invalid?.length) {
+        toast.error(
+          `Could not run action(s): ${invalid.map((a) => a.action).join(', ')}. Try rephrasing.`,
+        );
+      }
       if (safe.length) {
         const results = await runActions(safe);
         const done = results.filter((r) => r.success && !r.skipped);
