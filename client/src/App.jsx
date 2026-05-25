@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import SplashGate from "./components/SplashGate";
 
 // Pages
 import Login from "./pages/Login";
@@ -35,11 +36,10 @@ const ProtectedRoute = ({ children, requireAdmin }) => {
   return children;
 };
 
-function App() {
+function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <BrowserRouter>
       <Routes>
         <Route
           path="/login"
@@ -72,6 +72,15 @@ function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <SplashGate>
+        <AppRoutes />
+      </SplashGate>
     </BrowserRouter>
   );
 }
