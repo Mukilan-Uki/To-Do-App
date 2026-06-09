@@ -119,7 +119,7 @@ export default function AIChatScreen() {
           style={styles.input}
         />
         <TouchableOpacity onPress={send} style={styles.sendBtn}>
-          <Text style={{ color: "#fff" }}>Send</Text>
+          <Text style={{ color: "#fff" }}>SEND</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
