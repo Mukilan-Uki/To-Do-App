@@ -9,6 +9,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import invitationRoutes from './routes/invitationRoutes.js';
 import routineRoutes from './routes/routineRoutes.js';
+import projectRoutes from './routes/projectRoutes.js';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/routines', routineRoutes);
+app.use('/api/projects', projectRoutes);
 
 // Base route
 app.get('/', (req, res) => {
