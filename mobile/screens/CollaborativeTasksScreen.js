@@ -14,11 +14,11 @@ import BrandHeader from "../components/BrandHeader";
 import DoNowCard from "../components/DoNowCard";
 import TaskRow from "../components/TaskRow";
 import DoNowButton from "../components/DoNowButton";
-import { taskAPI, getApiErrorMessage } from "../services/apiService";
+import { projectAPI, invitationAPI, getApiErrorMessage } from "../services/apiService";
 import { colors, spacing, radius } from "../theme/colors";
 import { typography } from "../theme/typography";
 
-export default function CollaborativeTasksScreen() {
+export default function CollaborativeTasksScreen({ navigation }) {
   const [projects, setProjects] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,14 +30,16 @@ export default function CollaborativeTasksScreen() {
   const loadData = useCallback(async () => {
     try {
       setError("");
-      const { data } = await taskAPI.getTasks();
-      setProjects((data || []).filter((t) => t.type === "project"));
-
-      // Load invitations
-      try {
-        const { data: inv } = await taskAPI.getInvitations();
-        setInvitations(inv || []);
-      } catch {}
+      const [projectsRes, invRes] = await Promise.allSettled([
+        projectAPI.getProjects(),
+        invitationAPI.getMyInvitations(),
+      ]);
+      if (projectsRes.status === "fulfilled") {
+        setProjects(projectsRes.value.data || []);
+      }
+      if (invRes.status === "fulfilled") {
+        setInvitations(invRes.value.data || []);
+      }
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {
@@ -52,10 +54,14 @@ export default function CollaborativeTasksScreen() {
     }, [loadData]),
   );
 
-  const handleInvitation = async (taskId, taskTitle, accept) => {
+  const handleInvitation = async (invitationId, taskTitle, accept) => {
     setInvLoading(true);
     try {
-      await taskAPI.respondToInvitation(taskId, accept);
+      if (accept) {
+        await invitationAPI.accept(invitationId);
+      } else {
+        await invitationAPI.reject(invitationId);
+      }
       Alert.alert(
         accept ? "🎉 Joined!" : "Declined",
         accept ? `You joined "${taskTitle}"` : `You declined the invitation`,
@@ -202,25 +208,25 @@ export default function CollaborativeTasksScreen() {
             </DoNowCard>
           ) : (
             invitations.map((inv) => (
-              <DoNowCard key={inv.taskId} style={styles.invCard}>
+              <DoNowCard key={inv._id} style={styles.invCard}>
                 <View style={styles.invHeader}>
                   <View style={styles.invAvatar}>
                     <Text style={styles.invAvatarText}>
-                      {inv.invitedBy?.name?.charAt(0)?.toUpperCase() || "?"}
+                      {inv.from?.name?.charAt(0)?.toUpperCase() || "?"}
                     </Text>
                   </View>
                   <View style={styles.invInfo}>
                     <Text style={styles.invFrom}>
                       <Text style={{ color: colors.primary }}>
-                        {inv.invitedBy?.name}
+                        {inv.from?.name}
                       </Text>
                       {" invited you"}
                     </Text>
                     <Text style={styles.invTask} numberOfLines={1}>
-                      {inv.taskTitle}
+                      {inv.task?.title}
                     </Text>
                     <Text style={styles.invDate}>
-                      {new Date(inv.invitedAt).toLocaleDateString("en-US", {
+                      {new Date(inv.createdAt).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                       })}
@@ -232,7 +238,7 @@ export default function CollaborativeTasksScreen() {
                     title="Decline"
                     variant="ghost"
                     onPress={() =>
-                      handleInvitation(inv.taskId, inv.taskTitle, false)
+                      handleInvitation(inv._id, inv.task?.title, false)
                     }
                     loading={invLoading}
                     style={styles.invBtn}
@@ -240,7 +246,7 @@ export default function CollaborativeTasksScreen() {
                   <DoNowButton
                     title="✓ Accept"
                     onPress={() =>
-                      handleInvitation(inv.taskId, inv.taskTitle, true)
+                      handleInvitation(inv._id, inv.task?.title, true)
                     }
                     loading={invLoading}
                     style={styles.invBtn}

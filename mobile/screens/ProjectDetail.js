@@ -25,6 +25,8 @@ export default function ProjectDetail() {
 
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);

@@ -55,10 +55,36 @@ export const taskAPI = {
   updateTask: (id, data)  => request('PUT',    `/tasks/${id}`, data),
   deleteTask: (id)        => request('DELETE', `/tasks/${id}`),
   reorder:    (items)     => request('PUT',    '/tasks/reorder', { items }),
-  getInvitations:              () => request('GET', '/tasks/invitations'),
-  respondToInvitation: (taskId, accept) => request('POST', `/tasks/${taskId}/invitations/respond`, { accept }),
-  addCollaborator:    (id, invite)      => request('POST',   `/tasks/${id}/collaborators`, { invite }),
-  removeCollaborator: (id, collabId)    => request('DELETE', `/tasks/${id}/collaborators/${collabId}`),
+  addCollaborator:    (id, invite)   => request('POST',   `/tasks/${id}/collaborators`, { invite }),
+  removeCollaborator: (id, collabId) => request('DELETE', `/tasks/${id}/collaborators/${collabId}`),
+  // Subtask endpoints
+  addSubtask:    (taskId, data)            => request('POST',   `/tasks/${taskId}/subtasks`, data),
+  updateSubtask: (taskId, subtaskId, data) => request('PUT',    `/tasks/${taskId}/subtasks/${subtaskId}`, data),
+  deleteSubtask: (taskId, subtaskId)       => request('DELETE', `/tasks/${taskId}/subtasks/${subtaskId}`),
 };
 
+// Correct invitation endpoints — matches /api/invitations routes on server
+export const invitationAPI = {
+  getMyInvitations: ()            => request('GET', '/invitations'),
+  accept:           (id)          => request('PUT', `/invitations/${id}/accept`),
+  reject:           (id)          => request('PUT', `/invitations/${id}/reject`),
+};
+
+// Projects — dedicated /api/projects endpoints
+export const projectAPI = {
+  getProjects:   ()           => request('GET',  '/projects'),
+  createProject: (data)       => request('POST', '/projects', data),
+  inviteToProject: (id, invite) => request('POST', `/projects/${id}/invite`, { invite }),
+};
+
+// Routine endpoints
+export const routineAPI = {
+  getRoutine:        ()              => request('GET',    '/routines'),
+  updateRoutine:     (data)          => request('PUT',    '/routines', data),
+  addItem:           (data)          => request('POST',   '/routines/items', data),
+  toggleItem:        (itemId)        => request('PUT',    `/routines/items/${itemId}/toggle`),
+  deleteItem:        (itemId)        => request('DELETE', `/routines/items/${itemId}`),
+};
+
+export { request };
 export default { request };

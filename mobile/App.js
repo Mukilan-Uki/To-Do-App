@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AIAssistantProvider } from "./context/AIAssistantContext";
 import { useNetworkSync } from "./hooks/useNetworkSync";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
@@ -150,10 +151,12 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <NavigationContainer theme={navTheme}>
-        <StatusBar style="dark" />
-        <RootNavigator />
-      </NavigationContainer>
+      <AIAssistantProvider>
+        <NavigationContainer theme={navTheme}>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </NavigationContainer>
+      </AIAssistantProvider>
     </AuthProvider>
   );
 }

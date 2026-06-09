@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config/constants';
-import { taskAPI } from './apiService';
+import { taskAPI, routineAPI } from './apiService';
 
 async function getToken() {
   try {
@@ -107,17 +107,12 @@ export async function streamUnifiedMessage({ messages, context, onChunk, onDone,
 }
 
 export async function fetchAppContext() {
-  try {
-    const tasksRes = await taskAPI.getTasks().catch(() => ({ data: [] }));
-    
-    // mobile doesn't currently have routines mapped in apiService, but we can add it later
-    // const routineRes = await fetch(`${API_URL}/routines`)...
-
-    return {
-      tasks: tasksRes.data || [],
-      routine: null,
-    };
-  } catch {
-    return { tasks: [], routine: null };
-  }
+  const [tasksRes, routineRes] = await Promise.allSettled([
+    taskAPI.getTasks(),
+    routineAPI.getRoutine(),
+  ]);
+  return {
+    tasks: tasksRes.status === 'fulfilled' ? (tasksRes.value.data || []) : [],
+    routine: routineRes.status === 'fulfilled' ? (routineRes.value.data || null) : null,
+  };
 }

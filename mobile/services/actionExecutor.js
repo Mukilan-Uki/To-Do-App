@@ -1,5 +1,16 @@
-import api from './api';
+import { taskAPI } from './apiService';
 import { normalizeActionType, normalizeActionObject, CANONICAL_ACTIONS } from './actionParser';
+
+// Thin shim so the executor can call api.get/post/put/delete identically to the web version.
+// Delegates through the same fetch-based request helper used by apiService.
+import apiServiceDefault from './apiService';
+const { request } = apiServiceDefault;
+const api = {
+  get:    (path)        => request('GET',    path),
+  post:   (path, body)  => request('POST',   path, body),
+  put:    (path, body)  => request('PUT',    path, body),
+  delete: (path)        => request('DELETE', path),
+};
 
 function normalize(str) {
   return (str || '').toLowerCase().trim();
