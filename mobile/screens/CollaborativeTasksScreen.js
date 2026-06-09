@@ -113,7 +113,7 @@ export default function CollaborativeTasksScreen() {
                     tab === "invitations" && styles.tabTextActive,
                   ]}
                 >
-                  Invitations
+                  INVITE
                 </Text>
                 {invCount > 0 && (
                   <View style={styles.badge}>
